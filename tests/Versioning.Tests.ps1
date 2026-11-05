@@ -95,7 +95,9 @@ $cases = [ordered]@{
         $null = New-Item -ItemType Directory -Path $directory
 
         $nuspec = '<?xml version="1.0"?><package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">' +
-            '<metadata><id>Sample.Package</id><version>1.0.0-preview.1</version></metadata></package>'
+            '<metadata><id>Sample.Package</id><version>1.0.0-preview.1</version><dependencies><group targetFramework="net11.0">' +
+            '<dependency id="Sample.Core" version="[1.0.0-preview.1]" /><dependency id="Other.Library" version="2.0.0" />' +
+            '</group></dependencies></metadata></package>'
         $nupkg = Join-Path $directory 'Sample.Package.1.0.0-preview.1.nupkg'
         $archive = [System.IO.Compression.ZipFile]::Open($nupkg, 'Create')
 
@@ -127,8 +129,41 @@ $cases = [ordered]@{
         $packages = @(Get-PackageInventory -Directory $directory)
 
         if ($packages.Count -ne 2) { "$($packages.Count) packages were read" }
-        if (-not ($packages | Where-Object { $_.Ecosystem -ceq 'NuGet' -and $_.Id -ceq 'Sample.Package' -and $_.Version -ceq '1.0.0-preview.1' })) { 'the NuGet package wasn''t read' }
-        if (-not ($packages | Where-Object { $_.Ecosystem -ceq 'npm' -and $_.Id -ceq '@sample/package' -and $_.Version -ceq '1.0.0-preview.1' })) { 'the npm package wasn''t read' }
+        $nuget = $packages | Where-Object { $_.Ecosystem -ceq 'NuGet' -and $_.Id -ceq 'Sample.Package' -and $_.Version -ceq '1.0.0-preview.1' }
+        $npm = $packages | Where-Object { $_.Ecosystem -ceq 'npm' -and $_.Id -ceq '@sample/package' -and $_.Version -ceq '1.0.0-preview.1' }
+
+        if (-not $nuget) { 'the NuGet package wasn''t read' }
+        elseif (($nuget.Dependencies -join ',') -cne 'Other.Library,Sample.Core') { "the NuGet package's dependencies were read as $($nuget.Dependencies -join ',')" }
+        if (-not $npm) { 'the npm package wasn''t read' }
+        elseif ($npm.Dependencies.Count -ne 0) { "the npm package without dependencies was read with $($npm.Dependencies.Count)" }
+    }
+
+    'packages publish after the packages of the release they depend on, and a cycle is refused' = {
+        $package = { param($Ecosystem, $Id, [string[]] $Dependencies) [pscustomobject]@{ Ecosystem = $Ecosystem; Id = $Id; Dependencies = @($Dependencies) } }
+        $order = @(Get-PublicationOrder -Package @(
+                (& $package NuGet 'Forma.Blazor' 'forma.framework.culture', 'Forma.Framework', 'Microsoft.JSInterop'),
+                (& $package NuGet 'Forma.Framework.Culture' 'Forma.Framework'),
+                (& $package NuGet 'Forma.Framework' @()),
+                (& $package npm '@sample/dom' '@sample/nexo'),
+                (& $package npm '@sample/nexo' @())
+            ) | ForEach-Object { $_.Id })
+
+        foreach ($pair in @('Forma.Framework', 'Forma.Framework.Culture'), @('Forma.Framework.Culture', 'Forma.Blazor'), @('@sample/nexo', '@sample/dom')) {
+            if ([array]::IndexOf($order, $pair[0]) -gt [array]::IndexOf($order, $pair[1])) { "$($pair[1]) published before $($pair[0]), which it depends on: $($order -join ', ')" }
+        }
+
+        if ($order.Count -ne 5) { "$($order.Count) packages were ordered" }
+
+        $cycle = $null
+
+        try {
+            $null = Get-PublicationOrder -Package @((& $package NuGet 'A' 'B'), (& $package NuGet 'B' 'A'))
+        }
+        catch {
+            $cycle = $_.Exception.Message
+        }
+
+        if (-not $cycle) { 'packages depending on each other in a cycle were ordered' }
     }
 
     'a digests file names every package, and a changed, missing or unlisted one is found' = {

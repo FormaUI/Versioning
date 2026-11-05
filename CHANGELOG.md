@@ -7,6 +7,8 @@ then.
 
 *Unreleased*
 
+- `actions/publish-packages` publishes a release's saved packages to a feed in dependency order, past what the feed
+  already holds.
 - The promotion check tells a pull request into `main` from anywhere but `candidate` to target `dev`.
 
 ## `1.0.0-preview.1`

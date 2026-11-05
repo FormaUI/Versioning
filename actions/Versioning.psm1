@@ -256,7 +256,8 @@ function Save-RunArtifact {
     }
 }
 
-# The packages in a directory, each with its ecosystem, id and version, read from the package itself.
+# The packages in a directory, each with its ecosystem, id, version and the ids it depends on, read from the package
+# itself.
 function Get-PackageInventory {
     param([Parameter(Mandatory)] [string] $Directory)
 
@@ -269,13 +270,15 @@ function Get-PackageInventory {
                 $reader = [System.IO.StreamReader]::new($entry.Open())
 
                 try {
-                    $metadata = ([xml]$reader.ReadToEnd()).package.metadata
+                    $nuspec = [xml]$reader.ReadToEnd()
                 }
                 finally {
                     $reader.Dispose()
                 }
 
-                [pscustomobject]@{ Ecosystem = 'NuGet'; Id = $metadata.id; Version = $metadata.version; Path = $file.FullName }
+                $metadata = $nuspec.package.metadata
+                $dependencies = @($nuspec.SelectNodes("//*[local-name()='dependency']") | ForEach-Object { $_.GetAttribute('id') } | Sort-Object -Unique)
+                [pscustomobject]@{ Ecosystem = 'NuGet'; Id = $metadata.id; Version = $metadata.version; Dependencies = $dependencies; Path = $file.FullName }
             }
             finally {
                 $archive.Dispose()
@@ -305,7 +308,50 @@ function Get-PackageInventory {
                 throw "$($file.Name) doesn't hold package/package.json, so it isn't an npm package."
             }
 
-            [pscustomobject]@{ Ecosystem = 'npm'; Id = $manifest.name; Version = $manifest.version; Path = $file.FullName }
+            $dependencies = @(@(foreach ($field in 'dependencies', 'peerDependencies', 'optionalDependencies') {
+                        if ($manifest.PSObject.Properties[$field]) {
+                            $manifest.$field.PSObject.Properties.Name
+                        }
+                    }) | Sort-Object -Unique)
+            [pscustomobject]@{ Ecosystem = 'npm'; Id = $manifest.name; Version = $manifest.version; Dependencies = $dependencies; Path = $file.FullName }
+        }
+    }
+}
+
+# A release's packages in the order they publish, each after the packages of the release it depends on.
+function Get-PublicationOrder {
+    param([Parameter(Mandatory)] [AllowEmptyCollection()] [object[]] $Package)
+
+    $remaining = [System.Collections.Generic.List[object]]::new()
+
+    foreach ($item in $Package | Sort-Object -Property Ecosystem, Id) {
+        $remaining.Add($item)
+    }
+
+    while ($remaining.Count -gt 0) {
+        $ready = @(foreach ($item in $remaining) {
+                $waiting = $false
+
+                foreach ($dependency in $item.Dependencies) {
+                    foreach ($other in $remaining) {
+                        if ($other.Ecosystem -ceq $item.Ecosystem -and $other.Id -ieq $dependency) {
+                            $waiting = $true
+                        }
+                    }
+                }
+
+                if (-not $waiting) {
+                    $item
+                }
+            })
+
+        if ($ready.Count -eq 0) {
+            throw "The packages depend on each other in a cycle: $(($remaining | ForEach-Object { $_.Id }) -join ', ')."
+        }
+
+        foreach ($item in $ready) {
+            $item
+            $null = $remaining.Remove($item)
         }
     }
 }
@@ -435,4 +481,5 @@ function Write-CheckResult {
 
 Export-ModuleMember -Function Test-VersionRule, Compare-Version, Invoke-GitHubApi, Get-ReleaseVersion, Get-HighestVersion,
     Get-ChangelogEntry, Get-ReleaseSigner, Find-TagSigner, Find-GateRun, Get-RunArtifact, Save-RunArtifact,
-    Get-PackageInventory, Test-FeedVersion, New-DigestFile, Test-DigestFile, New-CheckResult, Write-CheckResult
+    Get-PackageInventory, Get-PublicationOrder, Test-FeedVersion, New-DigestFile, Test-DigestFile, New-CheckResult,
+    Write-CheckResult

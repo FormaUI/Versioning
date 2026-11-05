@@ -1,0 +1,38 @@
+name: Publish packages
+description: >-
+  Publishes the packages release-packages saved to a feed, each after the packages of the release it depends on, past
+  what the feed already holds: NuGet packages to the feed named, and npm packages under the dist-tag of their stage.
+
+inputs:
+  directory:
+    description: The directory release-packages saved the packages in, its directory output.
+    required: true
+  nuget-source:
+    description: The NuGet feed's address; empty publishes no NuGet package.
+    default: ''
+  nuget-api-key:
+    description: The NuGet feed's key, such as the one NuGet/login gives for nuget.org's trusted publishing.
+    default: ''
+  nuget-symbols:
+    description: Whether the NuGet feed takes symbols packages beside the packages, as nuget.org does.
+    default: 'true'
+  npm:
+    description: Whether the npm packages are published to the npm registry, through its trusted publishing.
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    # The inputs reach the script through the environment, so none of them is read as script.
+    - name: Publish the release's packages
+      shell: pwsh
+      env:
+        PACKAGES_DIRECTORY: ${{ inputs.directory }}
+        NUGET_SOURCE: ${{ inputs.nuget-source }}
+        NUGET_API_KEY: ${{ inputs.nuget-api-key }}
+        NUGET_SYMBOLS: ${{ inputs.nuget-symbols }}
+        NPM_PUBLISH: ${{ inputs.npm }}
+      run: >-
+        & (Join-Path $env:GITHUB_ACTION_PATH 'Publish-ReleasePackage.ps1') -Directory $env:PACKAGES_DIRECTORY
+        -NuGetSource $env:NUGET_SOURCE -NuGetApiKey $env:NUGET_API_KEY -NuGetSymbols ($env:NUGET_SYMBOLS -eq 'true')
+        -Npm ($env:NPM_PUBLISH -eq 'true')

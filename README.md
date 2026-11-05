@@ -61,8 +61,8 @@ Versioning follows its own rules, and states here what they leave to a project:
 
 ## The checks
 
-Versioning ships the promotion check, the release check and the step that attaches a release's packages as GitHub
-Actions. A project's workflows call them by the full commit SHA of the Versioning release it follows, with the version
+Versioning ships the promotion check, the release check, and the steps that attach and publish a release's packages,
+as GitHub Actions. A project's workflows call them by the full commit SHA of the Versioning release it follows, with the version
 in a comment beside it.
 
 | Action | Where a project calls it | What it does |
@@ -70,13 +70,14 @@ in a comment beside it.
 | [`actions/promotion-check`](actions/promotion-check/action.yml) | In the workflow a pull request into `main` runs, with the pull request's head commit checked out | Holds the pull request to the [promotion check](docs/releases.md#promotion) |
 | [`actions/release-check`](actions/release-check/action.yml) | First in the workflow a release tag's push runs, with the tag checked out | Holds the tag to the [release check](docs/releases.md#the-release-check), and gives the release's version and its full-gate run |
 | [`actions/release-packages`](actions/release-packages/action.yml) | After the release check, before anything is published | Attaches the full-gate run's packages to the tag's GitHub release with their digests, or takes the ones attached already, and saves them for the workflow to [publish](docs/releases.md#publication) |
+| [`actions/publish-packages`](actions/publish-packages/action.yml) | After `release-packages`, once for each feed | Publishes the saved packages in [dependency order](docs/packages.md#publication), past what the feed already holds: NuGet packages to the feed named, with symbols where it takes them, and npm packages under the dist-tag of their stage |
 
 - **The full-gate workflow** uploads the packages it built and verified as an artifact, under the name the actions
   take as `packages-artifact`, kept for as long as GitHub allows.
 - **The promotion check reads the full-gate run,** so the pull request is opened once the candidate's full run has
   passed, or its check runs again once it has.
-- **The release workflow publishes** what `release-packages` saved, through each feed's trusted publishing, past
-  what a feed already holds.
+- **The release workflow publishes** what `release-packages` saved through `publish-packages`, with the key each
+  feed's trusted publishing gives the run.
 - **The checks read** with `contents: read`, `actions: read` and `pull-requests: read`, and `release-packages` writes
   the release with `contents: write`.
 
