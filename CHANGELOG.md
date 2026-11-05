@@ -5,7 +5,7 @@ then.
 
 ## `1.0.0-preview.1`
 
-*Unreleased*
+*November 5, 2026*
 
 - The rules every FormaUI project follows for its versions, its branches, its commits, its releases and its packages.
 - The promotion check, the release check and the step that attaches a release's packages, as GitHub Actions a
