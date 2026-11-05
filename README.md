@@ -3,6 +3,18 @@
 How every FormaUI project versions, branches, commits and releases. Each project follows one release of these
 rules, and states in its own documentation only what is particular to it.
 
+```mermaid
+flowchart TD
+    work["feature/* or fix/*"] -->|"fast gate · fast-forward"| dev["dev"]
+    dev -->|"select tip · fast-forward"| candidate["candidate"]
+    candidate -->|"full gate passes · promotion PR · fast-forward"| main["main"]
+    main --> tag["Signed release tag"]
+    tag -->|"release checks pass"| publish["Publish packages"]
+```
+
+Candidate fixes land on `dev` first, then advance `candidate` and run the full gate again. Failed publication
+retries the same tag.
+
 | Document | What it sets out |
 | --- | --- |
 | [Versions](docs/versions.md) | What carries a version, the stages a version passes through and what each promises, and how a version advances |
