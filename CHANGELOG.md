@@ -5,7 +5,7 @@ then.
 
 ## `1.0.0-preview.3`
 
-*Unreleased*
+*November 5, 2026*
 
 - The release check accepts a release tag whose signature GitHub verifies, so the maintainer signs with any key
   their GitHub account holds. It refuses a tag whose tagger email the signing account hasn't verified, so a
