@@ -54,11 +54,18 @@ $headRepository = if ($pullRequest.head.repo) { $pullRequest.head.repo.full_name
 $results = [System.Collections.Generic.List[object]]::new()
 
 $fromCandidate = $headRepository -ceq $Repository -and $pullRequest.head.ref -ceq 'candidate' -and $pullRequest.base.ref -ceq 'main'
+$route = if ($headRepository -ceq $Repository -and $pullRequest.head.ref -ceq 'dev') {
+    "fast-forward candidate to dev's commit and open the promotion from candidate"
+}
+else {
+    'open this pull request against dev'
+}
+
 $sourceDetail = if ($fromCandidate) {
     "From $($pullRequest.head.label) into main"
 }
 else {
-    "From $($pullRequest.head.label) into $($pullRequest.base.ref): main takes this repository's candidate alone, so open this pull request against dev"
+    "From $($pullRequest.head.label) into $($pullRequest.base.ref): main takes this repository's candidate alone, so $route"
 }
 
 $results.Add((New-CheckResult -Check 'Source' -Holds $fromCandidate -Detail $sourceDetail))
