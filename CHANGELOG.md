@@ -7,4 +7,4 @@ then.
 
 *Unreleased*
 
-- The rules every FormaUI project follows for its versions, its branches, its releases and its commits.
+- The rules every FormaUI project follows for its versions, its branches, its commits, its releases and its packages.

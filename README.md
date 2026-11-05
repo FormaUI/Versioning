@@ -1,7 +1,7 @@
 # FormaUI Versioning
 
-How every FormaUI project versions, branches, commits and releases. Each project follows one release of these
-rules, and states in its own documentation only what is particular to it.
+How every FormaUI project versions, branches, commits, releases and packages its work. Each project follows one
+release of these rules, and states in its own documentation only what is particular to it.
 
 ```mermaid
 flowchart TD
@@ -21,6 +21,7 @@ retries the same tag.
 | [Branches](docs/branches.md) | The three branches, how work reaches them, and how a candidate is stabilized |
 | [Releases](docs/releases.md) | How a candidate becomes a release: promotion, the tag, the checks before each step, publication and the release record |
 | [Commits](docs/commits.md) | What a commit holds and how its message is written |
+| [Packages](docs/packages.md) | What a package holds, how it declares its dependencies and metadata, how it's verified and how consumers receive it, on npm and on NuGet |
 
 ## Projects
 
@@ -38,7 +39,9 @@ Each project states, in its own documentation:
 - its public contract, which the stages' promises cover;
 - the declaration of each of its versions;
 - its fast gate and its full gate, and the workflow that runs the full gate on a candidate;
-- the workflow that publishes a release, and the feeds it publishes to;
+- its packages: each one's id, the files it holds, the targets it supports, its feeds, the packages of its own it
+  depends on, and the commands that verify it;
+- the workflow that publishes a release;
 - its changelog, and the history of each contract it defines.
 
 ## Versioning's releases
