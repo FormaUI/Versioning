@@ -8,3 +8,5 @@ then.
 *Unreleased*
 
 - The rules every FormaUI project follows for its versions, its branches, its commits, its releases and its packages.
+- The promotion check, the release check and the step that attaches a release's packages, as GitHub Actions a
+  project's workflows call.

@@ -1,0 +1,36 @@
+name: Promotion check
+description: Holds a pull request from candidate into main to the promotion check of the FormaUI release rules.
+
+inputs:
+  gate-workflow:
+    description: The file name of the project's full-gate workflow, such as full.yml.
+    required: true
+  version-command:
+    description: PowerShell that prints the package version the checked-out commit declares.
+    required: true
+  changelog:
+    description: The changelog's path in the repository.
+    default: CHANGELOG.md
+  packages-artifact:
+    description: The name of the artifact the full-gate run keeps the packages it built in; empty for a project that publishes none.
+    default: ''
+  token:
+    description: A token that reads the repository's tags, workflow runs and artifacts.
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    # The inputs reach the script through the environment, so none of them is read as script.
+    - name: Hold the pull request to the promotion check
+      shell: pwsh
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        GATE_WORKFLOW: ${{ inputs.gate-workflow }}
+        VERSION_COMMAND: ${{ inputs.version-command }}
+        CHANGELOG_PATH: ${{ inputs.changelog }}
+        PACKAGES_ARTIFACT: ${{ inputs.packages-artifact }}
+      run: >-
+        & (Join-Path $env:GITHUB_ACTION_PATH 'Test-Promotion.ps1') -Repository $env:GITHUB_REPOSITORY
+        -GateWorkflow $env:GATE_WORKFLOW -VersionCommand $env:VERSION_COMMAND -Changelog $env:CHANGELOG_PATH
+        -PackagesArtifact $env:PACKAGES_ARTIFACT

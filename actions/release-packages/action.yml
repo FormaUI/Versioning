@@ -1,0 +1,48 @@
+name: Release packages
+description: >-
+  Attaches the packages a release's full-gate run built to the tag's GitHub release with their digests, or takes the
+  ones attached already, and saves them, checked against their digests, for the project's workflow to publish.
+
+inputs:
+  gate-run-id:
+    description: The full-gate run the release check found, its gate-run-id output.
+    required: true
+  packages-artifact:
+    description: The name of the artifact the full-gate run keeps the packages it built in.
+    required: true
+  name:
+    description: The project's name, which titles the GitHub release with the version.
+    required: true
+  directory:
+    description: The directory the packages are saved in.
+    default: release-packages
+  changelog:
+    description: The changelog's path in the repository, which the GitHub release links to at the tag.
+    default: CHANGELOG.md
+  token:
+    description: A token that reads the run's artifacts and writes the repository's releases.
+    default: ${{ github.token }}
+
+outputs:
+  directory:
+    description: The directory the packages are saved in, each matching its digest.
+    value: ${{ steps.save.outputs.directory }}
+
+runs:
+  using: composite
+  steps:
+    # The inputs reach the script through the environment, so none of them is read as script.
+    - name: Attach the release's packages and save them
+      id: save
+      shell: pwsh
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        GATE_RUN_ID: ${{ inputs.gate-run-id }}
+        PACKAGES_ARTIFACT: ${{ inputs.packages-artifact }}
+        PROJECT_NAME: ${{ inputs.name }}
+        PACKAGES_DIRECTORY: ${{ inputs.directory }}
+        CHANGELOG_PATH: ${{ inputs.changelog }}
+      run: >-
+        & (Join-Path $env:GITHUB_ACTION_PATH 'Save-ReleasePackage.ps1') -Repository $env:GITHUB_REPOSITORY
+        -Tag $env:GITHUB_REF_NAME -GateRunId $env:GATE_RUN_ID -PackagesArtifact $env:PACKAGES_ARTIFACT
+        -Directory $env:PACKAGES_DIRECTORY -Name $env:PROJECT_NAME -Changelog $env:CHANGELOG_PATH

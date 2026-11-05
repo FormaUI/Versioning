@@ -6,8 +6,9 @@
 Runs Versioning's gate.
 
 .DESCRIPTION
-Checks that every link and anchor the repository's documents give resolves, and that VERSION declares a version by
-the version rules, the one the changelog's newest entry names. Every problem is listed, and any problem fails the gate.
+Checks that every link and anchor the repository's documents give resolves, that VERSION declares a version by the
+version rules, the one the changelog's newest entry names, and runs the cases of the functions the checks share. Every
+problem is listed, and any problem fails the gate.
 
 .EXAMPLE
 ./build.ps1
@@ -129,6 +130,11 @@ elseif ($version -and $newest -notmatch "^## ``$([regex]::Escape($version))``\s*
 }
 
 Write-Host "Checked $($documents.Count) documents and the $linkCount links they give, and VERSION, $version."
+Write-Host 'The cases of the functions the checks share:'
+
+foreach ($problem in @(& (Join-Path $root 'tests' 'Versioning.Tests.ps1'))) {
+    $problems.Add($problem)
+}
 
 if ($problems.Count -gt 0) {
     foreach ($problem in $problems) {

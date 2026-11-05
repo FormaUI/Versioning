@@ -53,9 +53,31 @@ Versioning follows its own rules, and states here what they leave to a project:
   accepted, breaks the contract; a rule a project may take up is an addition; a rewording that changes no
   obligation is a fix.
 - **Its version** is declared in [`VERSION`](VERSION), and the [changelog](CHANGELOG.md) records each release.
-- **Its gate,** `./build.ps1`, checks that every link and anchor the documents give resolves, and that `VERSION`
-  and the changelog's newest entry agree. It's both its fast and its full gate, and `ci.yml` runs it.
+- **Its gate,** `./build.ps1`, checks that every link and anchor the documents give resolves and that `VERSION`
+  and the changelog's newest entry agree, and runs the cases of the functions the checks share. It's both its fast
+  and its full gate, and `ci.yml` runs it.
 - **It publishes no package,** so a release is its tag alone.
+
+## The checks
+
+Versioning ships the promotion check, the release check and the step that attaches a release's packages as GitHub
+Actions. A project's workflows call them by the full commit SHA of the Versioning release it follows, with the version
+in a comment beside it.
+
+| Action | Where a project calls it | What it does |
+| --- | --- | --- |
+| [`actions/promotion-check`](actions/promotion-check/action.yml) | In the workflow a pull request into `main` runs, with the pull request's head commit checked out | Holds the pull request to the [promotion check](docs/releases.md#promotion) |
+| [`actions/release-check`](actions/release-check/action.yml) | First in the workflow a release tag's push runs, with the tag checked out | Holds the tag to the [release check](docs/releases.md#the-release-check), and gives the release's version and its full-gate run |
+| [`actions/release-packages`](actions/release-packages/action.yml) | After the release check, before anything is published | Attaches the full-gate run's packages to the tag's GitHub release with their digests, or takes the ones attached already, and saves them for the workflow to [publish](docs/releases.md#publication) |
+
+- **The full-gate workflow** uploads the packages it built and verified as an artifact, under the name the actions
+  take as `packages-artifact`, kept for as long as GitHub allows.
+- **The promotion check reads the full-gate run,** so the pull request is opened once the candidate's full run has
+  passed, or its check runs again once it has.
+- **The release workflow publishes** what `release-packages` saved, through each feed's trusted publishing, past
+  what a feed already holds.
+- **The checks read** with `contents: read`, `actions: read` and `pull-requests: read`, and `release-packages` writes
+  the release with `contents: write`.
 
 ## Following a release
 

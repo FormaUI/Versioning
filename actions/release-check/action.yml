@@ -1,0 +1,45 @@
+name: Release check
+description: Holds a release tag to the release check of the FormaUI release rules, before anything is published.
+
+inputs:
+  gate-workflow:
+    description: The file name of the project's full-gate workflow, such as full.yml.
+    required: true
+  version-command:
+    description: PowerShell that prints the package version the checked-out commit declares.
+    required: true
+  changelog:
+    description: The changelog's path in the repository.
+    default: CHANGELOG.md
+  packages-artifact:
+    description: The name of the artifact the full-gate run keeps the packages it built in; empty for a project that publishes none.
+    default: ''
+  token:
+    description: A token that reads the repository's pull requests, workflow runs, artifacts and releases.
+    default: ${{ github.token }}
+
+outputs:
+  version:
+    description: The release's version, the tag's without its v.
+    value: ${{ steps.check.outputs.version }}
+  gate-run-id:
+    description: The full-gate run the release's packages come from.
+    value: ${{ steps.check.outputs.gate-run-id }}
+
+runs:
+  using: composite
+  steps:
+    # The inputs reach the script through the environment, so none of them is read as script.
+    - name: Hold the tag to the release check
+      id: check
+      shell: pwsh
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        GATE_WORKFLOW: ${{ inputs.gate-workflow }}
+        VERSION_COMMAND: ${{ inputs.version-command }}
+        CHANGELOG_PATH: ${{ inputs.changelog }}
+        PACKAGES_ARTIFACT: ${{ inputs.packages-artifact }}
+      run: >-
+        & (Join-Path $env:GITHUB_ACTION_PATH 'Test-Release.ps1') -Repository $env:GITHUB_REPOSITORY
+        -Tag $env:GITHUB_REF_NAME -GateWorkflow $env:GATE_WORKFLOW -VersionCommand $env:VERSION_COMMAND
+        -Changelog $env:CHANGELOG_PATH -PackagesArtifact $env:PACKAGES_ARTIFACT
