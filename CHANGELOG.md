@@ -5,7 +5,7 @@ then.
 
 ## `1.0.0-preview.2`
 
-*Unreleased*
+*November 5, 2026*
 
 - `actions/publish-packages` publishes a release's saved packages to a feed in dependency order, past what the feed
   already holds.
