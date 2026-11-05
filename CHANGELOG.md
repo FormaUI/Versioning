@@ -5,7 +5,7 @@ then.
 
 ## `1.0.0-preview.4`
 
-*Unreleased*
+*November 5, 2026*
 
 - The promotion check tells a pull request into `main` from `dev` to fast-forward `candidate` to its commit and
   promote it from there, in place of opening it against `dev`.
