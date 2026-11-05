@@ -8,6 +8,13 @@ A project has three permanent branches, and every other branch is a fix branch o
 | `candidate` | The candidate, the commit of `dev` selected for release, under its full gate. |
 | `main` | The latest release. It's the default branch, and it advances only by [promotion](releases.md#promotion). |
 
+## Starting
+
+- A new project's `main` starts at its root commit, the one commit `main` holds that isn't a release, and `dev`
+  branches from it. `candidate` is created by the first candidate's fast-forward.
+- A project taking up these rules keeps `main` where it stands, and branches `dev` from its tip. The commits `main`
+  held before then predate the rules.
+
 ## Landing work
 
 - A change lands on `dev`, directly or by a pull request from a branch of its own, branched from `dev` and named

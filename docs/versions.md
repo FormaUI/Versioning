@@ -57,6 +57,8 @@ A project states its public contract in its own documentation, and the stages' p
   addition after a fix raises `X.Y.Z+1` to `X.Y+1.0`.
 - **Leaving a stage is the maintainer's decision,** made when the contract is ready and set in the declaration: the
   last preview, `X.0.0-preview.N`, is followed by `X.0.0-rc.1`, and the last release candidate by `X.0.0`.
-- **A contract version advances only when its contract changes.** The first change to the contract after a release
-  advances its declaration and opens the next entry of its history, in the same commit, and each later change
-  before the next release joins that entry. It advances by the same stages and steps as the package version.
+- **A contract version advances when its contract changes, or when the maintainer moves it to its next stage.** The
+  first change to the contract after a release advances its declaration and opens the next entry of its history, in
+  the same commit, and each later change before the next release joins that entry. Moving a frozen contract from
+  `X.0.0-rc.N` to `X.0.0` changes only its version, and its history entry says so. A contract version advances by
+  the same stages and steps as the package version.

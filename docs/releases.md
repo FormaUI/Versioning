@@ -42,7 +42,7 @@ The release check runs on the tag's push, before anything is published, and hold
 | Check | Holds when |
 | --- | --- |
 | Tag | Its name is `v` and a version by the [version rules](versions.md), it's annotated, and its signature verifies against a release signer's key |
-| Commit | Its commit is the head commit of a merged promotion pull request, and `main` holds it |
+| Commit | Its commit is the head commit of a merged promotion pull request, and `main`'s history holds it |
 | Gate | The project's full-gate workflow passed on that exact SHA, in a run on a push to `candidate`, in this repository |
 | Version | The tag's version equals the package version's declaration at the tagged commit |
 | Changelog | The changelog at the tagged commit holds the version's entry, dated |
@@ -53,9 +53,14 @@ Publication runs only once every check holds, and builds from the tagged commit.
 
 - The project's own release workflow publishes, on the tag's push, through each feed's trusted publishing where the
   feed offers it, so each run holds a credential that expires with it.
-- A failed publication runs again for the same tag, and publishes what the feeds lack, from the same commit.
+- Its first run attaches every package it builds to the tag's GitHub release, with each package's SHA-256 digest,
+  before it publishes any.
+- A failed publication runs again for the same tag: it publishes the attached packages the feeds lack, each once its
+  digest matches, and builds nothing. A run that failed before attaching every package published nothing, so the
+  run after it builds them afresh.
 - A release's contents are fixed once it's published, and a fix to them is the next version. A published version is
   never deleted: one consumers should leave is deprecated or unlisted, and the next release replaces it.
+- A project that publishes no package is released by its tag alone.
 
 ## The release record
 
