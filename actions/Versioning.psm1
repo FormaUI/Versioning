@@ -161,61 +161,6 @@ function Get-ChangelogEntry {
     $entry
 }
 
-# The release signers the releases document lists, each by account and primary key fingerprint.
-function Get-ReleaseSigner {
-    param([Parameter(Mandatory)] [string] $Path)
-
-    foreach ($line in [System.IO.File]::ReadAllLines($Path)) {
-        $match = [regex]::Match($line, '^\|\s*\[([A-Za-z0-9-]+)\]\(https://github\.com/\1\)\s*\|\s*`([0-9A-F ]+)`\s*\|\s*$')
-
-        if ($match.Success) {
-            $fingerprint = $match.Groups[2].Value -replace ' ', ''
-
-            if ($fingerprint -cmatch '^[0-9A-F]{40}$') {
-                [pscustomobject]@{ Account = $match.Groups[1].Value; Fingerprint = $fingerprint }
-            }
-        }
-    }
-}
-
-# The release signer whose key made a tag's signature, or nothing where none of their keys did.
-function Find-TagSigner {
-    param([Parameter(Mandatory)] [string] $Tag, [Parameter(Mandatory)] [AllowEmptyCollection()] [object[]] $Signer)
-
-    # The signers' keys are read into a keyring of the check's own, with the GnuPG Git verifies with, so only their
-    # keys can verify the tag.
-    $program = git config --get gpg.program
-    $program = if ($program) { $program } else { 'gpg' }
-    $gpgconf = if (Split-Path -Path $program) { Join-Path (Split-Path -Path $program) 'gpgconf' } else { 'gpgconf' }
-    $keyring = Join-Path ([System.IO.Path]::GetTempPath()) "versioning-keys-$([guid]::NewGuid().ToString('N'))"
-    $null = New-Item -ItemType Directory -Path $keyring
-    $previousHome = $env:GNUPGHOME
-    $env:GNUPGHOME = $keyring
-
-    try {
-        foreach ($account in @($Signer | ForEach-Object { $_.Account } | Sort-Object -Unique)) {
-            $keys = Invoke-RestMethod -Uri "https://github.com/$account.gpg"
-
-            if ($keys -match 'BEGIN PGP PUBLIC KEY BLOCK') {
-                $null = $keys | & $program --batch --quiet --import 2>&1
-            }
-        }
-
-        $status = (git verify-tag --raw $Tag 2>&1 | ForEach-Object { "$_" }) -join "`n"
-        $valid = [regex]::Match($status, '(?m)^\[GNUPG:\] VALIDSIG .*$')
-
-        if ($status -match '(?m)^\[GNUPG:\] GOODSIG ' -and $valid.Success) {
-            $primary = ($valid.Value.Trim() -split '\s+')[-1]
-            $Signer | Where-Object { $_.Fingerprint -ceq $primary } | Select-Object -First 1
-        }
-    }
-    finally {
-        $env:GNUPGHOME = $previousHome
-        $null = & $gpgconf --homedir $keyring --kill all 2>&1
-        Remove-Item -LiteralPath $keyring -Recurse -Force -ErrorAction SilentlyContinue
-    }
-}
-
 # The latest run of the full-gate workflow that passed on a push to candidate for a commit, or nothing.
 function Find-GateRun {
     param(
@@ -480,6 +425,5 @@ function Write-CheckResult {
 }
 
 Export-ModuleMember -Function Test-VersionRule, Compare-Version, Invoke-GitHubApi, Get-ReleaseVersion, Get-HighestVersion,
-    Get-ChangelogEntry, Get-ReleaseSigner, Find-TagSigner, Find-GateRun, Get-RunArtifact, Save-RunArtifact,
-    Get-PackageInventory, Get-PublicationOrder, Test-FeedVersion, New-DigestFile, Test-DigestFile, New-CheckResult,
-    Write-CheckResult
+    Get-ChangelogEntry, Find-GateRun, Get-RunArtifact, Save-RunArtifact, Get-PackageInventory, Get-PublicationOrder,
+    Test-FeedVersion, New-DigestFile, Test-DigestFile, New-CheckResult, Write-CheckResult

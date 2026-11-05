@@ -3,6 +3,14 @@
 Each release of Versioning, newest first. An entry is dated when its release is cut, and reads *Unreleased* until
 then.
 
+## `1.0.0-preview.3`
+
+*Unreleased*
+
+- The release check accepts a release tag whose signature GitHub verifies, so the maintainer signs with any key
+  their GitHub account holds. It refuses a tag whose tagger email the signing account hasn't verified, so a
+  release is tagged under an email that account has verified.
+
 ## `1.0.0-preview.2`
 
 *November 5, 2026*

@@ -7,12 +7,12 @@ Holds a release tag to the release check.
 
 .DESCRIPTION
 Checks the tag the workflow runs for, with the repository checked out at its commit: the tag is named v and a version
-by the version rules, it's annotated, and its signature verifies against a release signer's key; its commit is the
-head commit of a merged promotion pull request, and main's history holds it; the project's full-gate workflow passed
-on that commit on a push to candidate; the tag's version is the one the commit declares; the changelog holds the
-version's entry, dated; and the release's packages are held by the full-gate run or attached to the tag's GitHub
-release. The release's version and the full-gate run are written to the step's outputs. Every result is written to
-the log and the job's summary, and any check that fails fails the step.
+by the version rules, it's annotated, and GitHub verifies its signature; its commit is the head commit of a merged
+promotion pull request, and main's history holds it; the project's full-gate workflow passed on that commit on a push
+to candidate; the tag's version is the one the commit declares; the changelog holds the version's entry, dated; and
+the release's packages are held by the full-gate run or attached to the tag's GitHub release. The release's version
+and the full-gate run are written to the step's outputs. Every result is written to the log and the job's summary,
+and any check that fails fails the step.
 
 .PARAMETER Repository
 The repository, as owner/name.
@@ -64,15 +64,15 @@ if (-not (Test-VersionRule -Version $tagVersion)) {
 if ((git cat-file -t "refs/tags/$Tag" 2>&1) -cne 'tag') {
     $tagProblems.Add("$Tag is lightweight; a release tag is annotated")
 }
+else {
+    $tagObject = Invoke-GitHubApi -Path "repos/$Repository/git/tags/$((git rev-parse "refs/tags/$Tag").Trim())"
 
-$signers = @(Get-ReleaseSigner -Path (Join-Path $PSScriptRoot '..' '..' 'docs' 'releases.md'))
-$signer = Find-TagSigner -Tag $Tag -Signer $signers
-
-if (-not $signer) {
-    $tagProblems.Add("$Tag's signature doesn't verify against a release signer's key")
+    if (-not $tagObject.verification.verified) {
+        $tagProblems.Add("GitHub doesn't verify $Tag's signature: $($tagObject.verification.reason)")
+    }
 }
 
-$tagDetail = if ($tagProblems.Count -gt 0) { $tagProblems -join '; ' } else { "$Tag, annotated, signed by $($signer.Account)" }
+$tagDetail = if ($tagProblems.Count -gt 0) { $tagProblems -join '; ' } else { "$Tag, annotated, with a signature GitHub verifies" }
 $results.Add((New-CheckResult -Check 'Tag' -Holds ($tagProblems.Count -eq 0) -Detail $tagDetail))
 
 $commit = (git rev-parse "refs/tags/$Tag^{commit}").Trim()

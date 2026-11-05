@@ -6,7 +6,7 @@ separate, so a commit stays released when its publication fails, and publication
 
 ## Promotion
 
-Promotion is a pull request from `candidate` into `main`. The promotion check runs on it, and a release signer,
+Promotion is a pull request from `candidate` into `main`. The promotion check runs on it, and the maintainer,
 approving it, fast-forwards `main` to its head commit, `git push origin candidate:main`, which marks the pull request
 merged. `main` then holds the candidate's exact commit, so every commit `main` has advanced to is a release.
 
@@ -25,16 +25,9 @@ The promotion check holds the pull request to:
 - A release's tag is named `v` and the package version, as `v1.0.0-preview.1`, and marks the commit `main` was
   promoted to.
 - It's annotated, with the project's name and the version as its message, as `Forma 1.0.0-preview.1`, and signed by
-  a release signer.
-- Only a release signer creates a release tag, and a pushed tag is never moved or deleted.
-
-### Release signers
-
-| Account | Primary key fingerprint |
-| --- | --- |
-| [soyeyalon](https://github.com/soyeyalon) | `CAFC 1934 0836 6FD4 B53B  48C5 2AFD EA51 2887 E037` |
-
-A tag's signature verifies when Git verifies it and the primary key that made it is one listed here.
+  the maintainer, with a key their GitHub account holds and under an email it has verified, so GitHub verifies the
+  signature.
+- Only the maintainer creates a release tag, and a pushed tag is never moved or deleted.
 
 ## The release check
 
@@ -42,7 +35,7 @@ The release check runs on the tag's push, before anything is published, and hold
 
 | Check | Holds when |
 | --- | --- |
-| Tag | Its name is `v` and a version by the [version rules](versions.md), it's annotated, and its signature verifies against a release signer's key |
+| Tag | Its name is `v` and a version by the [version rules](versions.md), it's annotated, and GitHub verifies its signature |
 | Commit | Its commit is the head commit of a merged promotion pull request, and `main`'s history holds it |
 | Gate | The project's full-gate workflow passed on that exact SHA, in a run on a push to `candidate`, in this repository |
 | Version | The tag's version equals the package version's declaration at the tagged commit |

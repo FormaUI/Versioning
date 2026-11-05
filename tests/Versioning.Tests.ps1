@@ -76,20 +76,6 @@ $cases = [ordered]@{
         if ((Get-ChangelogEntry -Path (Join-Path $scratch 'none.md') -Version '1.0.0').Found) { 'a missing changelog held an entry' }
     }
 
-    'the release signers are read from the releases document' = {
-        $signers = @(Get-ReleaseSigner -Path (Join-Path $root 'docs' 'releases.md'))
-
-        if ($signers.Count -lt 1) { 'the releases document listed no signer' }
-
-        foreach ($signer in $signers) {
-            if ($signer.Fingerprint -cnotmatch '^[0-9A-F]{40}$') { "$($signer.Account)'s fingerprint is $($signer.Fingerprint)" }
-        }
-
-        if (-not ($signers | Where-Object { $_.Account -ceq 'soyeyalon' -and $_.Fingerprint -ceq 'CAFC193408366FD4B53B48C52AFDEA512887E037' })) {
-            'soyeyalon wasn''t read with the primary key''s fingerprint'
-        }
-    }
-
     'a directory''s packages are read from the packages themselves' = {
         $directory = Join-Path $scratch 'packages'
         $null = New-Item -ItemType Directory -Path $directory
