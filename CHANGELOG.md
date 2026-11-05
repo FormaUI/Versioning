@@ -3,6 +3,12 @@
 Each release of Versioning, newest first. An entry is dated when its release is cut, and reads *Unreleased* until
 then.
 
+## `1.0.0-preview.2`
+
+*Unreleased*
+
+- The promotion check tells a pull request into `main` from anywhere but `candidate` to target `dev`.
+
 ## `1.0.0-preview.1`
 
 *November 5, 2026*

@@ -54,7 +54,14 @@ $headRepository = if ($pullRequest.head.repo) { $pullRequest.head.repo.full_name
 $results = [System.Collections.Generic.List[object]]::new()
 
 $fromCandidate = $headRepository -ceq $Repository -and $pullRequest.head.ref -ceq 'candidate' -and $pullRequest.base.ref -ceq 'main'
-$results.Add((New-CheckResult -Check 'Source' -Holds $fromCandidate -Detail "From $($pullRequest.head.label) into $($pullRequest.base.ref)"))
+$sourceDetail = if ($fromCandidate) {
+    "From $($pullRequest.head.label) into main"
+}
+else {
+    "From $($pullRequest.head.label) into $($pullRequest.base.ref): main takes this repository's candidate alone, so open this pull request against dev"
+}
+
+$results.Add((New-CheckResult -Check 'Source' -Holds $fromCandidate -Detail $sourceDetail))
 
 $checkedOut = (git rev-parse HEAD).Trim()
 
