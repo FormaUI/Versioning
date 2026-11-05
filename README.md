@@ -56,7 +56,8 @@ Versioning follows its own rules, and states here what they leave to a project:
 - **Its gate,** `./build.ps1`, checks that every link and anchor the documents give resolves and that `VERSION`
   and the changelog's newest entry agree, and runs the cases of the functions the checks share. It's both its fast
   and its full gate, and `ci.yml` runs it.
-- **It publishes no package,** so a release is its tag alone.
+- **It publishes no package,** so a release is its tag alone. Its `promotion.yml` and `release.yml` run the checks
+  from the commit they check.
 
 ## The checks
 

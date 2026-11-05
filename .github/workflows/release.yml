@@ -1,0 +1,25 @@
+name: Release
+
+# The release check on every release tag's push. Versioning publishes no package, so the check is the whole release,
+# and it runs the actions the tagged commit holds.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+
+# Each action is pinned to the commit of the release named in its comment.
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./actions/release-check
+        with:
+          gate-workflow: ci.yml
+          version-command: (Get-Content VERSION -Raw).Trim()
