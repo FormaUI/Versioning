@@ -1,0 +1,28 @@
+name: CI
+
+# The gate on every push but main's, which promotion fast-forwards to a commit that passed on candidate, and on every
+# pull request, on a clean Linux machine of a fixed release.
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# A newer push to a pull request supersedes the older run; every commit on a branch keeps its own result.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Each action is pinned to the commit of the release named in its comment.
+jobs:
+  gate:
+    name: Gate
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Run the gate
+        shell: pwsh
+        run: ./build.ps1

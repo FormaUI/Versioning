@@ -41,6 +41,19 @@ Each project states, in its own documentation:
 - the workflow that publishes a release, and the feeds it publishes to;
 - its changelog, and the history of each contract it defines.
 
+## Versioning's releases
+
+Versioning follows its own rules, and states here what they leave to a project:
+
+- **Its public contract** is these rules: what a project following a release does, and what the checks hold it to.
+  A change that leaves a project following the release before it out of compliance, or makes a check refuse what it
+  accepted, breaks the contract; a rule a project may take up is an addition; a rewording that changes no
+  obligation is a fix.
+- **Its version** is declared in [`VERSION`](VERSION), and the [changelog](CHANGELOG.md) records each release.
+- **Its gate,** `./build.ps1`, checks that every link and anchor the documents give resolves, and that `VERSION`
+  and the changelog's newest entry agree. It's both its fast and its full gate, and `ci.yml` runs it.
+- **It publishes no package,** so a release is its tag alone.
+
 ## Following a release
 
 A project follows one release of Versioning. It links to these documents at that release's tag, as
