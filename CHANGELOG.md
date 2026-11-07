@@ -3,6 +3,13 @@
 Each release of Versioning, newest first. An entry is dated when its release is cut, and reads *Unreleased* until
 then.
 
+## `1.0.0-preview.5`
+
+*Unreleased*
+
+- `commands/New-Release.ps1` releases a project's candidate: it holds the release to the rules, signs the tag in the
+  project's clone and pushes `main` and the tag in one atomic push, and resumes a release that stopped partway.
+
 ## `1.0.0-preview.4`
 
 *November 5, 2026*

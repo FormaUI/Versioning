@@ -81,6 +81,25 @@ in a comment beside it.
 - **The checks read** with `contents: read`, `actions: read` and `pull-requests: read`, and `release-packages` writes
   the release with `contents: write`.
 
+## The release command
+
+[`commands/New-Release.ps1`](commands/New-Release.ps1) releases a project's candidate once the maintainer has decided to
+release it. It holds the release to the rules before anything is pushed, signs the tag in the project's clone and
+verifies the signature, then pushes `main` and the tag in one atomic push, so both land or neither does:
+
+```powershell
+pwsh -NoProfile -File <checkout>/commands/New-Release.ps1 -Repository FormaUI/Forma -Version 1.0.0-preview.4 -Path <clone>
+```
+
+- **It runs from a checkout of a released Versioning tag,** outside the project's clone, so what's being released can't
+  change what the command does. It reads the candidate as text and runs none of its code.
+- **It reads the release check's settings** from the project's release workflow at the candidate's commit, so a
+  project states them once.
+- **It resumes a release that stopped partway:** a signed tag the clone holds for the candidate is pushed as it is,
+  and `main` already at the candidate isn't pushed again.
+- **A standing permission can name it alone,** for an agent that releases at the maintainer's word: what the
+  permission allows is what the command checks, not any push to `main`.
+
 ## Following a release
 
 A project follows one release of Versioning. It links to these documents at that release's tag, as

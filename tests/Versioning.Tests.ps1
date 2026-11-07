@@ -152,6 +152,80 @@ $cases = [ordered]@{
         if (-not $cycle) { 'packages depending on each other in a cycle were ordered' }
     }
 
+    'the release check''s settings are read as text from a release workflow, a block scalar''s lines kept' = {
+        $workflow = Join-Path $scratch 'release.yml'
+        [System.IO.File]::WriteAllText($workflow, @'
+jobs:
+  release:
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Hold the tag to the release check
+        id: check
+        uses: FormaUI/Versioning/actions/release-check@0123456789abcdef0123456789abcdef01234567 # v1.0.0-preview.4
+        with:
+          gate-workflow: full.yml
+          # The packages the gate kept.
+          packages-artifact: 'packages'
+          version-command: |
+            $properties = [xml](Get-Content Directory.Build.props -Raw)
+
+            if ($properties) { 'x' }
+
+      - name: Attach the packages
+        with:
+          changelog: elsewhere.md
+'@)
+        $inputs = Get-ReleaseCheckInput -Path $workflow
+
+        if (-not $inputs) { 'no settings were read' }
+        elseif ($inputs['gate-workflow'] -cne 'full.yml') { "the gate workflow read as '$($inputs['gate-workflow'])'" }
+        elseif ($inputs['packages-artifact'] -cne 'packages') { "a quoted scalar read as '$($inputs['packages-artifact'])'" }
+        elseif ($inputs['version-command'] -cne "`$properties = [xml](Get-Content Directory.Build.props -Raw)`n`nif (`$properties) { 'x' }") { "the block scalar read as '$($inputs['version-command'])'" }
+        elseif ($inputs.Contains('changelog')) { 'a later step''s setting was read as the release check''s' }
+
+        $own = Join-Path $scratch 'own.yml'
+        [System.IO.File]::WriteAllText($own, "jobs:`n  release:`n    steps:`n      - uses: ./actions/release-check`n        with:`n          gate-workflow: ci.yml`n          version-command: (Get-Content VERSION -Raw).Trim()`n")
+        $ownInputs = Get-ReleaseCheckInput -Path $own
+
+        if (-not $ownInputs -or $ownInputs['gate-workflow'] -cne 'ci.yml' -or $ownInputs['version-command'] -cne '(Get-Content VERSION -Raw).Trim()') { 'a step opening with uses read wrong' }
+
+        $none = Join-Path $scratch 'none.yml'
+        [System.IO.File]::WriteAllText($none, "jobs:`n  build:`n    steps:`n      - run: echo`n")
+
+        if ($null -ne (Get-ReleaseCheckInput -Path $none)) { 'a workflow calling no release check gave settings' }
+    }
+
+    'a changelog''s versions are read newest first' = {
+        $changelog = Join-Path $scratch 'versions.md'
+        [System.IO.File]::WriteAllText($changelog, "# Changelog`n`n## ``1.0.0-preview.2```n`n*Unreleased*`n`n## ``1.0.0-preview.1```n`n*November 5, 2026*`n")
+        $versions = @(Get-ChangelogVersion -Path $changelog)
+
+        if (($versions -join ',') -cne '1.0.0-preview.2,1.0.0-preview.1') { "the versions read as '$($versions -join ',')'" }
+    }
+
+    'a release''s steps follow from where main and the tag stand' = {
+        $candidate = 'c' * 40
+        $main = 'm' * 40
+        $other = 'o' * 40
+        $states = @(
+            @{ Name = 'a fresh release'; Main = $main; Behind = $true; Pushed = ''; Cloned = ''; Steps = 'Sign,Promote,Push'; Problem = $false }
+            @{ Name = 'a release signed but not pushed'; Main = $main; Behind = $true; Pushed = ''; Cloned = $candidate; Steps = 'Promote,Push'; Problem = $false }
+            @{ Name = 'a release with main promoted and the tag unpushed'; Main = $candidate; Behind = $true; Pushed = ''; Cloned = ''; Steps = 'Sign,Push'; Problem = $false }
+            @{ Name = 'a release done'; Main = $candidate; Behind = $true; Pushed = $candidate; Cloned = $candidate; Steps = ''; Problem = $false }
+            @{ Name = 'a tag pushed for another commit'; Main = $main; Behind = $true; Pushed = $other; Cloned = ''; Steps = ''; Problem = $true }
+            @{ Name = 'main ahead of the candidate'; Main = $main; Behind = $false; Pushed = ''; Cloned = ''; Steps = ''; Problem = $true }
+            @{ Name = 'a cloned tag for another commit'; Main = $main; Behind = $true; Pushed = ''; Cloned = $other; Steps = ''; Problem = $true }
+        )
+
+        foreach ($state in $states) {
+            $step = Get-ReleaseStep -Candidate $candidate -Main $state.Main -MainIsBehind $state.Behind -PushedTag $state.Pushed -ClonedTag $state.Cloned
+
+            if (($step.Steps -join ',') -cne $state.Steps) { "$($state.Name) took the steps '$($step.Steps -join ',')'" }
+            if ([bool]$step.Problem -ne $state.Problem) { "$($state.Name) $(if ($state.Problem) { 'went on' } else { "stopped: $($step.Problem)" })" }
+        }
+    }
+
     'a digests file names every package, and a changed, missing or unlisted one is found' = {
         $directory = Join-Path $scratch 'digests'
         $null = New-Item -ItemType Directory -Path $directory

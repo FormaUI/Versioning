@@ -395,6 +395,166 @@ function Test-DigestFile {
     }
 }
 
+# The inputs a workflow gives the release check, read as text from the workflow's file: each key of the step's with
+# mapping, a block scalar's lines joined, a quoted scalar unquoted. Nothing where the file calls no release check.
+function Get-ReleaseCheckInput {
+    param([Parameter(Mandatory)] [string] $Path)
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return $null
+    }
+
+    $lines = [System.IO.File]::ReadAllLines($Path)
+    $indentOf = { param($line) $line.Length - $line.TrimStart().Length }
+    $use = -1
+
+    for ($index = 0; $index -lt $lines.Count; $index++) {
+        if ($lines[$index] -match '^(?<lead>\s*(?:-\s+)?)uses:\s*\S*actions/release-check(?:@\S+)?\s*(?:#.*)?$') {
+            $use = $index
+            $keyIndent = $Matches['lead'].Length
+            break
+        }
+    }
+
+    if ($use -lt 0) {
+        return $null
+    }
+
+    # The step runs from its dash to the next line that is less indented than its keys or opens the next step.
+    $start = $use
+
+    while ($start -gt 0 -and $lines[$start] -notmatch "^\s{$($keyIndent - 2)}-\s") {
+        $start--
+    }
+
+    $end = $start + 1
+
+    while ($end -lt $lines.Count -and -not ($lines[$end].Trim() -and ((& $indentOf $lines[$end]) -lt $keyIndent -or $lines[$end] -match "^\s{$($keyIndent - 2)}-\s"))) {
+        $end++
+    }
+
+    $inputs = [ordered]@{}
+    $with = -1
+
+    for ($index = $start; $index -lt $end; $index++) {
+        if ($lines[$index] -match "^\s{$keyIndent}with:\s*$") {
+            $with = $index
+            break
+        }
+    }
+
+    if ($with -lt 0) {
+        return $inputs
+    }
+
+    $index = $with + 1
+
+    while ($index -lt $end) {
+        $line = $lines[$index]
+
+        if (-not $line.Trim() -or $line.TrimStart().StartsWith('#')) {
+            $index++
+            continue
+        }
+
+        $entryIndent = & $indentOf $line
+
+        if ($entryIndent -le $keyIndent -or $line -notmatch '^\s*(?<key>[\w-]+):\s*(?<value>.*)$') {
+            break
+        }
+
+        $key = $Matches['key']
+        $value = $Matches['value']
+        $index++
+
+        if ($value -match '^[|>][+-]?\s*(?:#.*)?$') {
+            $block = [System.Collections.Generic.List[string]]::new()
+
+            while ($index -lt $end -and (-not $lines[$index].Trim() -or (& $indentOf $lines[$index]) -gt $entryIndent)) {
+                $block.Add($lines[$index])
+                $index++
+            }
+
+            while ($block.Count -gt 0 -and -not $block[$block.Count - 1].Trim()) {
+                $block.RemoveAt($block.Count - 1)
+            }
+
+            $common = ($block | Where-Object { $_.Trim() } | ForEach-Object { & $indentOf $_ } | Measure-Object -Minimum).Minimum
+            $inputs[$key] = ($block | ForEach-Object { if ($_.Length -ge $common) { $_.Substring($common) } else { '' } }) -join "`n"
+        }
+        elseif ($value -match "^'(?<text>(?:[^']|'')*)'\s*(?:#.*)?$") {
+            $inputs[$key] = $Matches['text'] -replace "''", "'"
+        }
+        elseif ($value -match '^"(?<text>[^"]*)"\s*(?:#.*)?$') {
+            $inputs[$key] = $Matches['text']
+        }
+        else {
+            $inputs[$key] = ($value -replace '\s+#.*$', '').Trim()
+        }
+    }
+
+    $inputs
+}
+
+# The versions a changelog's entries name, newest first, as their headings give them.
+function Get-ChangelogVersion {
+    param([Parameter(Mandatory)] [string] $Path)
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return
+    }
+
+    foreach ($line in [System.IO.File]::ReadAllLines($Path)) {
+        if ($line.TrimEnd() -cmatch '^## `(?<version>[^`]+)`$') {
+            $Matches['version']
+        }
+    }
+}
+
+# What a release of a candidate still needs, from where main and the tag stand: the steps left, in order, or the reason
+# it can't go on. A tag already pushed for the candidate, with main at it, leaves nothing; a tag pushed for another
+# commit is never moved; a signed tag made in the clone for the candidate is pushed as it is.
+function Get-ReleaseStep {
+    param(
+        [Parameter(Mandatory)] [string] $Candidate,
+        [Parameter(Mandatory)] [string] $Main,
+        [Parameter(Mandatory)] [bool] $MainIsBehind,
+        [AllowEmptyString()] [string] $PushedTag = '',
+        [AllowEmptyString()] [string] $ClonedTag = ''
+    )
+
+    $state = [pscustomobject]@{ Steps = @(); Problem = $null }
+
+    if ($PushedTag) {
+        if ($PushedTag -cne $Candidate) {
+            $state.Problem = "The tag is already pushed for $PushedTag, and a pushed tag is never moved"
+        }
+        elseif ($Main -cne $Candidate) {
+            $state.Problem = "The tag is pushed for $Candidate, and main is at $Main"
+        }
+
+        return $state
+    }
+
+    if ($Main -cne $Candidate -and -not $MainIsBehind) {
+        $state.Problem = "main is at $Main, which isn't behind $Candidate, so it can't fast-forward to it"
+        return $state
+    }
+
+    if ($ClonedTag -and $ClonedTag -cne $Candidate) {
+        $state.Problem = "The clone's tag marks $ClonedTag rather than $Candidate"
+        return $state
+    }
+
+    $state.Steps = @(
+        if (-not $ClonedTag) { 'Sign' }
+        if ($Main -cne $Candidate) { 'Promote' }
+        'Push'
+    )
+
+    $state
+}
+
 # One check's result: whether it holds, and what it found.
 function New-CheckResult {
     param([Parameter(Mandatory)] [string] $Check, [Parameter(Mandatory)] [bool] $Holds, [Parameter(Mandatory)] [string] $Detail)
@@ -425,5 +585,6 @@ function Write-CheckResult {
 }
 
 Export-ModuleMember -Function Test-VersionRule, Compare-Version, Invoke-GitHubApi, Get-ReleaseVersion, Get-HighestVersion,
-    Get-ChangelogEntry, Find-GateRun, Get-RunArtifact, Save-RunArtifact, Get-PackageInventory, Get-PublicationOrder,
-    Test-FeedVersion, New-DigestFile, Test-DigestFile, New-CheckResult, Write-CheckResult
+    Get-ChangelogEntry, Get-ChangelogVersion, Find-GateRun, Get-RunArtifact, Save-RunArtifact, Get-PackageInventory,
+    Get-PublicationOrder, Test-FeedVersion, New-DigestFile, Test-DigestFile, Get-ReleaseCheckInput, Get-ReleaseStep,
+    New-CheckResult, Write-CheckResult
