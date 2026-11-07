@@ -5,7 +5,7 @@ then.
 
 ## `1.0.0-preview.5`
 
-*Unreleased*
+*November 8, 2026*
 
 - `commands/New-Release.ps1` releases a project's candidate: it holds the release to the rules, signs the tag in the
   project's clone and pushes `main` and the tag in one atomic push, and resumes a release that stopped partway.
