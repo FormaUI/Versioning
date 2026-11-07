@@ -142,26 +142,41 @@ else {
 
 $results.Add((New-CheckResult -Check 'Promotion' -Holds ([bool]$promoted) -Detail $promotionDetail))
 
-# The candidate's tree, read as text.
+# The candidate's files the release reads, each as git holds it at the commit, written to a folder of their own.
 $tree = Join-Path ([System.IO.Path]::GetTempPath()) "versioning-release-$([guid]::NewGuid().ToString('N'))"
-# Reading the tree is no change, so a described run reads it too.
+
+function Save-CandidateFile {
+    param([Parameter(Mandatory)] [string] $RelativePath)
+
+    $target = Join-Path $tree $RelativePath
+    $null = New-Item -ItemType Directory -Force -Path (Split-Path -Parent $target) -WhatIf:$false
+
+    # git writes the file as it holds it, UTF-8, which the console's own code page would misread.
+    $encoding = [Console]::OutputEncoding
+    [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+
+    try {
+        $text = & git -C $Path show "$($candidate):$($RelativePath -replace '\\', '/')" 2>$null
+        $code = $LASTEXITCODE
+    }
+    finally {
+        [Console]::OutputEncoding = $encoding
+    }
+
+    if ($code -ne 0) {
+        return $null
+    }
+
+    [System.IO.File]::WriteAllText($target, (($text | ForEach-Object { "$_" }) -join "`n") + "`n")
+    $target
+}
+
+# Reading the candidate's files is no change, so a described run reads them too.
 $null = New-Item -ItemType Directory -Path $tree -WhatIf:$false
 
 try {
-    $archive = Join-Path $tree 'tree.tar'
-    $archived = Invoke-Git @('archive', '--format=tar', '-o', $archive, $candidate)
-
-    if ($archived.Code -ne 0) {
-        throw "Reading $candidate's tree failed: $($archived.Text)"
-    }
-
-    tar -xf $archive -C $tree
-
-    if ($LASTEXITCODE -ne 0) {
-        throw "Unpacking $candidate's tree failed."
-    }
-
-    $inputs = Get-ReleaseCheckInput -Path (Join-Path $tree '.github' 'workflows' $ReleaseWorkflow)
+    $workflowPath = Save-CandidateFile -RelativePath ".github/workflows/$ReleaseWorkflow"
+    $inputs = if ($workflowPath) { Get-ReleaseCheckInput -Path $workflowPath } else { $null }
 
     if ($null -eq $inputs -or -not $inputs.Contains('gate-workflow')) {
         throw "$ReleaseWorkflow at $candidate calls no release check with a gate-workflow, so the release's rules can't be read."
@@ -175,7 +190,12 @@ try {
     $gateDetail = if ($run) { "$gateWorkflow passed on $candidate, in run $($run.id)" } else { "$gateWorkflow hasn't passed on a push to candidate for $candidate" }
     $results.Add((New-CheckResult -Check 'Gate' -Holds ([bool]$run) -Detail $gateDetail))
 
-    $changelogPath = Join-Path $tree $changelog
+    $changelogPath = Save-CandidateFile -RelativePath $changelog
+
+    if (-not $changelogPath) {
+        $changelogPath = Join-Path $tree $changelog
+    }
+
     $newest = @(Get-ChangelogVersion -Path $changelogPath) | Select-Object -First 1
     $entry = Get-ChangelogEntry -Path $changelogPath -Version $Version
     $isNewest = $newest -ceq $Version -and $entry.Found -and $entry.Dated
