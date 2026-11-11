@@ -21,6 +21,7 @@ retries the same tag.
 | [Branches](docs/branches.md) | The three branches, how work reaches them, and how a candidate is stabilized |
 | [Releases](docs/releases.md) | How a candidate becomes a release: promotion, the tag, the checks before each step, publication and the release record |
 | [Commits](docs/commits.md) | What a commit holds and how its message is written |
+| [Verification](docs/verification.md) | How a change is checked as it's made and before it lands, and how the checks stay fast without being weakened |
 | [Packages](docs/packages.md) | What a package holds, how it declares its dependencies and metadata, how it's verified and how consumers receive it, on npm and on NuGet |
 
 ## Projects

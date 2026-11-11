@@ -3,6 +3,15 @@
 Each release of Versioning, newest first. An entry is dated when its release is cut, and reads *Unreleased* until
 then.
 
+## `1.0.0-preview.6`
+
+*Unreleased*
+
+- [Verification](docs/verification.md) sets out how a change is checked: the narrowest check first and one
+  configuration while it's made, the fast gate on each commit and the wider checks once on the final state, and
+  the rules that keep the checks fast without weakening them. A project following an earlier release runs its full
+  gate nightly on `dev` and has its gates record each step's time.
+
 ## `1.0.0-preview.5`
 
 *November 8, 2026*
